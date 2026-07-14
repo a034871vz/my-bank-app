@@ -1,0 +1,25 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: notifications-service
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:consul}
+      port: 8500
+      discovery:
+        enabled: true
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/bank-realm
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -1,0 +1,44 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: cash-service
+  datasource:
+    url: jdbc:postgresql://postgres:5432/bankdb?currentSchema=cash
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:consul}
+      port: 8500
+      discovery:
+        enabled: true
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/bank-realm
+      client:
+        registration:
+          cash-service:
+            client-id: cash-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:change-me}
+            authorization-grant-type: client_credentials
+            scope: accounts,notifications
+        provider:
+          keycloak:
+            issuer-uri: http://keycloak:8080/realms/bank-realm
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

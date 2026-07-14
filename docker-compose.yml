@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: bank_consul
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    command: consul agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: bank_postgres
+    environment:
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.4
+    container_name: bank_keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/bankdb?currentSchema=keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_DB_SCHEMA: keycloak
+    ports:
+      - "8082:8080"
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak-import:/opt/keycloak/data/import
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  gateway-api:
+    build:
+      context: .
+      dockerfile: gateway-api/Dockerfile
+    container_name: bank_gateway
+    depends_on:
+      - consul
+      - keycloak
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      CONSUL_HOST: consul
+      KEYCLOAK_HOST: keycloak
+      KEYCLOAK_PORT: 8080
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  front-ui:
+    build:
+      context: .
+      dockerfile: front-ui/Dockerfile
+    container_name: bank_front
+    depends_on:
+      - consul
+      - keycloak
+      - gateway-api
+    environment:
+      SERVER_PORT: 8083
+      SPRING_PROFILES_ACTIVE: dev
+      CONSUL_HOST: consul
+      KEYCLOAK_HOST: keycloak
+      KEYCLOAK_PORT: 8080
+      GATEWAY_URL: http://gateway-api:8080
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  accounts-service:
+    build:
+      context: .
+      dockerfile: accounts-service/Dockerfile
+    container_name: bank_accounts
+    depends_on:
+      - consul
+      - postgres
+      - keycloak
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      CONSUL_HOST: consul
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_SCHEMA: accounts
+      KEYCLOAK_HOST: keycloak
+      KEYCLOAK_PORT: 8080
+    restart: unless-stopped
+
+  cash-service:
+    build:
+      context: .
+      dockerfile: cash-service/Dockerfile
+    container_name: bank_cash
+    depends_on:
+      - consul
+      - postgres
+      - keycloak
+      - accounts-service
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      CONSUL_HOST: consul
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_SCHEMA: cash
+      KEYCLOAK_HOST: keycloak
+      KEYCLOAK_PORT: 8080
+    restart: unless-stopped
+
+  transfer-service:
+    build:
+      context: .
+      dockerfile: transfer-service/Dockerfile
+    container_name: bank_transfer
+    depends_on:
+      - consul
+      - postgres
+      - keycloak
+      - accounts-service
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      CONSUL_HOST: consul
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_SCHEMA: transfer
+      KEYCLOAK_HOST: keycloak
+      KEYCLOAK_PORT: 8080
+    restart: unless-stopped
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: notifications-service/Dockerfile
+    container_name: bank_notifications
+    depends_on:
+      - consul
+      - keycloak
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      CONSUL_HOST: consul
+      KEYCLOAK_HOST: keycloak
+      KEYCLOAK_PORT: 8080
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  consul_data:

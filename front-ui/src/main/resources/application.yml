@@ -1,0 +1,35 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: front-ui
+  thymeleaf:
+    cache: false
+  cloud:
+    consul:
+      host: consul
+      port: 8500
+      discovery:
+        enabled: true
+        prefer-ip-address: true
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: front-ui
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:change-me}
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: http://keycloak:8080/realms/bank-realm
+            user-name-attribute: preferred_username
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
