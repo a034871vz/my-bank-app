@@ -28,6 +28,9 @@ spring:
         enabled: true
         prefer-ip-address: true
         instance-id: ${spring.application.name}:${random.value}
+        heartbeat:
+          enabled: true
+        health-check-enabled: false
   security:
     oauth2:
       resourceserver:
