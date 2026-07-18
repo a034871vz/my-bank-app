@@ -10,7 +10,13 @@ spring:
       port: 8500
       discovery:
         enabled: true
-        register: false
+        register: true
+        prefer-ip-address: false
+        hostname: localhost
+        instance-id: ${spring.application.name}:${random.value}
+        heartbeat:
+          enabled: true
+        health-check-enabled: false
     gateway:
       discovery:
         locator:
@@ -55,6 +61,9 @@ management:
     web:
       exposure:
         include: health,info,gateway
+  endpoint:
+    gateway:
+      access: read_only
 
 logging:
   level:

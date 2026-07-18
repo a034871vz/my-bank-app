@@ -8,11 +8,15 @@ spring:
     cache: false
   cloud:
     consul:
-      host: consul
+      host: ${CONSUL_HOST:localhost}
       port: 8500
       discovery:
         enabled: true
-        prefer-ip-address: true
+        prefer-ip-address: false
+        hostname: localhost
+        heartbeat:
+          enabled: true
+        health-check-enabled: false
   security:
     oauth2:
       client:
@@ -25,7 +29,7 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/bank-realm
+            issuer-uri: http://${KEYCLOAK_HOST:localhost}:${KEYCLOAK_PORT:8082}/realms/bank-realm
             user-name-attribute: preferred_username
 
 management:
