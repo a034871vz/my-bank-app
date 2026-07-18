@@ -6,49 +6,57 @@ spring:
     name: gateway-api
   cloud:
     consul:
-      host: consul
+      host: ${CONSUL_HOST:localhost}
       port: 8500
       discovery:
         enabled: true
-        prefer-ip-address: true
+        register: false
     gateway:
       discovery:
         locator:
-          enabled: true
-          lower-case-service-id: true
+          enabled: false
       routes:
         - id: accounts-service
           uri: lb://accounts-service
           predicates:
             - Path=/accounts/**
           filters:
-            - TokenRelay
+            - StripPrefix=0
+
         - id: cash-service
           uri: lb://cash-service
           predicates:
             - Path=/cash/**
           filters:
-            - TokenRelay
+            - StripPrefix=0
+
         - id: transfer-service
           uri: lb://transfer-service
           predicates:
             - Path=/transfer/**
           filters:
-            - TokenRelay
+            - StripPrefix=0
+
         - id: notifications-service
           uri: lb://notifications-service
           predicates:
             - Path=/notifications/**
           filters:
-            - TokenRelay
+            - StripPrefix=0
+
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/bank-realm
+          issuer-uri: http://${KEYCLOAK_HOST:localhost}:${KEYCLOAK_PORT:8082}/realms/bank-realm
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,gateway
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: DEBUG
