@@ -59,10 +59,13 @@ public class AccountController {
 
     @PostMapping("/{login}/balance")
     @PreAuthorize("hasAuthority('ROLE_accounts')")
-    public ResponseEntity<AccountDto> changeBalance(@PathVariable String login, @RequestBody Map<String, Integer> body) {
-        int amount = body.getOrDefault("amount", 0);
-        log.info("Изменение баланса для {} на {}", login, amount);
-        return ResponseEntity.ok(accountService.changeBalance(login, amount));
+    public ResponseEntity<AccountDto> changeBalance(@PathVariable String login, @RequestBody Map<String, Object> body) {
+
+        int amount = (Integer) body.getOrDefault("amount", 0);
+        String idempotencyKey = (String) body.get("idempotencyKey");
+
+        log.info("Изменение баланса для {} на {}, key={}", login, amount, idempotencyKey);
+        return ResponseEntity.ok(accountService.changeBalance(login, amount, idempotencyKey));
     }
 
     private String extractNameFromJwt(Jwt jwt) {

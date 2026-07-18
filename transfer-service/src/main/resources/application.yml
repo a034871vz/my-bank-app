@@ -32,7 +32,6 @@ spring:
             client-id: transfer-service
             client-secret: ${KEYCLOAK_CLIENT_SECRET:change-me}
             authorization-grant-type: client_credentials
-            scope: accounts,notifications
         provider:
           keycloak:
             issuer-uri: http://keycloak:8080/realms/bank-realm

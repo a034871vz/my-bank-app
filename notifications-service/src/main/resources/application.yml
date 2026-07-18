@@ -10,7 +10,8 @@ spring:
       port: 8500
       discovery:
         enabled: true
-        prefer-ip-address: true
+        prefer-ip-address: false
+        hostname: localhost
         instance-id: ${spring.application.name}:${random.value}
         heartbeat:
           enabled: true

@@ -26,7 +26,8 @@ spring:
       port: 8500
       discovery:
         enabled: true
-        prefer-ip-address: true
+        prefer-ip-address: false
+        hostname: localhost
         instance-id: ${spring.application.name}:${random.value}
         heartbeat:
           enabled: true
@@ -36,17 +37,6 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://${KEYCLOAK_HOST:localhost}:${KEYCLOAK_PORT:8082}/realms/bank-realm
-      client:
-        registration:
-          accounts-service:
-            provider: keycloak
-            client-id: accounts-service
-            client-secret: ${ACCOUNTS_SERVICE_SECRET:default-secret}
-            authorization-grant-type: client_credentials
-            scope: notifications
-        provider:
-          keycloak:
-            issuer-uri: http://${KEYCLOAK_HOST:localhost}:${KEYCLOAK_PORT:8082}/realms/bank-realm
 
 management:
   endpoints:

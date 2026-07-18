@@ -7,9 +7,11 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.dto.AccountDto;
 import ru.yandex.practicum.dto.AccountUpdateRequest;
 import ru.yandex.practicum.entity.Account;
+import ru.yandex.practicum.entity.IdempotencyKey;
 import ru.yandex.practicum.exception.AccountNotFoundException;
 import ru.yandex.practicum.exception.ValidationException;
 import ru.yandex.practicum.repository.AccountRepository;
+import ru.yandex.practicum.repository.IdempotencyKeyRepository;
 
 import java.time.LocalDate;
 import java.time.Period;
@@ -22,6 +24,7 @@ import java.util.List;
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     public AccountDto getByLogin(String login) {
         return accountRepository.findByLogin(login)
@@ -47,7 +50,17 @@ public class AccountService {
     }
 
     @Transactional
-    public AccountDto changeBalance(String login, int amount) {
+    public AccountDto changeBalance(String login, int amount, String idempotencyKey) {
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            var existing = idempotencyKeyRepository.findByKey(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Повторный запрос с key={}, возвращаем кэшированный результат", idempotencyKey);
+                return accountRepository.findByLogin(login)
+                        .map(AccountDto::new)
+                        .orElseThrow(() -> new AccountNotFoundException(login));
+            }
+        }
+
         Account account = accountRepository.findByLogin(login).orElseThrow(() -> new AccountNotFoundException(login));
 
         int newBalance = account.getBalance() + amount;
@@ -57,7 +70,13 @@ public class AccountService {
         }
 
         account.setBalance(newBalance);
-        return new AccountDto(accountRepository.save(account));
+        Account saved = accountRepository.save(account);
+
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKey, login, saved.getBalance()));
+        }
+
+        return new AccountDto(saved);
     }
 
     @Transactional
