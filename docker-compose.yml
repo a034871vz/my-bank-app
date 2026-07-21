@@ -1,15 +1,42 @@
 version: '3.8'
 
+networks:
+  bank-network:
+    driver: bridge
+
 services:
+  traefik:
+    image: traefik:v3.1
+    container_name: bank_traefik
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+      - "8088:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      bank-network:
+        aliases:
+          - auth.localhost
+          - api.localhost
+          - front.localhost
+    restart: unless-stopped
+
   consul:
     image: hashicorp/consul:1.19
     container_name: bank_consul
     ports:
       - "8500:8500"
-      - "8600:8600/udp"
     command: consul agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0
     volumes:
       - consul_data:/consul/data
+    networks:
+      - bank-network
     restart: unless-stopped
 
   postgres:
@@ -19,11 +46,11 @@ services:
       POSTGRES_DB: bankdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - bank-network
     restart: unless-stopped
 
   keycloak:
@@ -36,14 +63,22 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/bankdb?currentSchema=keycloak
       KC_DB_USERNAME: postgres
       KC_DB_PASSWORD: postgres
-      KC_DB_SCHEMA: keycloak
-    ports:
-      - "8082:8080"
+      KC_HOSTNAME: http://auth.localhost
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
     command: start-dev --import-realm
     volumes:
       - ./keycloak-import:/opt/keycloak/data/import
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`auth.localhost`)
+      - traefik.http.routers.keycloak.entrypoints=web
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
     depends_on:
       - postgres
+    networks:
+      - bank-network
     restart: unless-stopped
 
   gateway-api:
@@ -51,16 +86,19 @@ services:
       context: .
       dockerfile: gateway-api/Dockerfile
     container_name: bank_gateway
+    environment:
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - CONSUL_HOST=consul
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gateway.rule=Host(`api.localhost`)
+      - traefik.http.routers.gateway.entrypoints=web
+      - traefik.http.services.gateway.loadbalancer.server.port=8080
     depends_on:
       - consul
       - keycloak
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      CONSUL_HOST: consul
-      KEYCLOAK_HOST: keycloak
-      KEYCLOAK_PORT: 8080
-    ports:
-      - "8080:8080"
+    networks:
+      - bank-network
     restart: unless-stopped
 
   front-ui:
@@ -68,19 +106,20 @@ services:
       context: .
       dockerfile: front-ui/Dockerfile
     container_name: bank_front
+    environment:
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - CONSUL_HOST=consul
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.front.rule=Host(`front.localhost`)
+      - traefik.http.routers.front.entrypoints=web
+      - traefik.http.services.front.loadbalancer.server.port=8083
     depends_on:
       - consul
       - keycloak
       - gateway-api
-    environment:
-      SERVER_PORT: 8083
-      SPRING_PROFILES_ACTIVE: dev
-      CONSUL_HOST: consul
-      KEYCLOAK_HOST: keycloak
-      KEYCLOAK_PORT: 8080
-      GATEWAY_URL: http://gateway-api:8080
-    ports:
-      - "8083:8083"
+    networks:
+      - bank-network
     restart: unless-stopped
 
   accounts-service:
@@ -88,20 +127,18 @@ services:
       context: .
       dockerfile: accounts-service/Dockerfile
     container_name: bank_accounts
+    environment:
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - CONSUL_HOST=consul
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     depends_on:
       - consul
       - postgres
       - keycloak
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      CONSUL_HOST: consul
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: bankdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_SCHEMA: accounts
-      KEYCLOAK_HOST: keycloak
-      KEYCLOAK_PORT: 8080
+    networks:
+      - bank-network
     restart: unless-stopped
 
   cash-service:
@@ -109,21 +146,20 @@ services:
       context: .
       dockerfile: cash-service/Dockerfile
     container_name: bank_cash
+    environment:
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - CONSUL_HOST=consul
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - CASH_SERVICE_SECRET=${CASH_SERVICE_SECRET}
     depends_on:
       - consul
       - postgres
       - keycloak
       - accounts-service
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      CONSUL_HOST: consul
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: bankdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_SCHEMA: cash
-      KEYCLOAK_HOST: keycloak
-      KEYCLOAK_PORT: 8080
+    networks:
+      - bank-network
     restart: unless-stopped
 
   transfer-service:
@@ -131,21 +167,20 @@ services:
       context: .
       dockerfile: transfer-service/Dockerfile
     container_name: bank_transfer
+    environment:
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - CONSUL_HOST=consul
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - TRANSFER_SERVICE_SECRET=${TRANSFER_SERVICE_SECRET}
     depends_on:
       - consul
       - postgres
       - keycloak
       - accounts-service
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      CONSUL_HOST: consul
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: bankdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_SCHEMA: transfer
-      KEYCLOAK_HOST: keycloak
-      KEYCLOAK_PORT: 8080
+    networks:
+      - bank-network
     restart: unless-stopped
 
   notifications-service:
@@ -153,14 +188,14 @@ services:
       context: .
       dockerfile: notifications-service/Dockerfile
     container_name: bank_notifications
+    environment:
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - CONSUL_HOST=consul
     depends_on:
       - consul
       - keycloak
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      CONSUL_HOST: consul
-      KEYCLOAK_HOST: keycloak
-      KEYCLOAK_PORT: 8080
+    networks:
+      - bank-network
     restart: unless-stopped
 
 volumes:
