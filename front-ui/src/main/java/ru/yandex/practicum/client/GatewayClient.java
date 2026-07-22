@@ -1,7 +1,8 @@
-package ru.yandex.practicum.mybankfront.client;
+package ru.yandex.practicum.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -11,9 +12,9 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import ru.yandex.practicum.mybankfront.dto.AccountResponse;
-import ru.yandex.practicum.mybankfront.dto.CashResponse;
-import ru.yandex.practicum.mybankfront.dto.TransferResponse;
+import ru.yandex.practicum.dto.AccountResponse;
+import ru.yandex.practicum.dto.CashResponse;
+import ru.yandex.practicum.dto.TransferResponse;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +27,9 @@ public class GatewayClient {
 
     private final RestClient.Builder restClientBuilder;
     private final OAuth2AuthorizedClientService authorizedClientService;
+
+    @Value("${services.gateway.url}")
+    private String gatewayUrl;
 
     private String getAccessToken() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -42,6 +46,7 @@ public class GatewayClient {
 
     private RestClient getClient() {
         return restClientBuilder
+                .baseUrl(gatewayUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + getAccessToken())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
@@ -51,7 +56,7 @@ public class GatewayClient {
         log.info("Запрос данных аккаунта");
         return getClient()
                 .get()
-                .uri("http://gateway-api/accounts/me")
+                .uri("/accounts/me")
                 .retrieve()
                 .body(AccountResponse.class);
     }
@@ -60,7 +65,7 @@ public class GatewayClient {
         log.info("Обновление аккаунта: name={}, birthdate={}", name, birthdate);
         getClient()
                 .put()
-                .uri("http://gateway-api/accounts/me")
+                .uri("/accounts/me")
                 .body(Map.of("name", name, "birthdate", birthdate.toString()))
                 .retrieve()
                 .body(AccountResponse.class);
@@ -70,16 +75,17 @@ public class GatewayClient {
         log.info("Запрос списка аккаунтов");
         return getClient()
                 .get()
-                .uri("http://gateway-api/accounts")
+                .uri("/accounts")
                 .retrieve()
-                .body(new ParameterizedTypeReference<>() {});
+                .body(new ParameterizedTypeReference<>() {
+                });
     }
 
     public CashResponse processCash(String type, int amount) {
         log.info("Операция cash: type={}, amount={}", type, amount);
         return getClient()
                 .post()
-                .uri("http://gateway-api/cash")
+                .uri("/cash")
                 .body(Map.of("type", type, "amount", amount))
                 .retrieve()
                 .body(CashResponse.class);
@@ -89,7 +95,7 @@ public class GatewayClient {
         log.info("Перевод: recipient={}, amount={}", recipientLogin, amount);
         return getClient()
                 .post()
-                .uri("http://gateway-api/transfer")
+                .uri("/transfer")
                 .body(Map.of("recipientLogin", recipientLogin, "amount", amount))
                 .retrieve()
                 .body(TransferResponse.class);

@@ -1,5 +1,5 @@
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jdk-alpine
 WORKDIR /app
-COPY transfer-service/target/*.jar app.jar
+COPY transfer-service/target/transfer-service-*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

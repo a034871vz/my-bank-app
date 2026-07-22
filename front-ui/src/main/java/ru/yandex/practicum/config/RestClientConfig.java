@@ -1,4 +1,4 @@
-package ru.yandex.practicum.mybankfront.config;
+package ru.yandex.practicum.config;
 
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;

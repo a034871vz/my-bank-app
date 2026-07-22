@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8081}
+  max-http-request-header-size: 64KB
 
 spring:
   application:
@@ -11,8 +12,8 @@ spring:
       discovery:
         enabled: true
         register: true
-        prefer-ip-address: false
-        hostname: localhost
+        prefer-ip-address: ${CONSUL_PREFER_IP:false}
+        hostname: ${CONSUL_DISCOVERY_HOSTNAME:localhost}
         instance-id: ${spring.application.name}:${random.value}
         heartbeat:
           enabled: true
@@ -25,47 +26,29 @@ spring:
         - id: accounts-service
           uri: lb://accounts-service
           predicates:
-            - Path=/accounts/**
+            - Path=/accounts,/accounts/**
           filters:
             - StripPrefix=0
-
         - id: cash-service
           uri: lb://cash-service
           predicates:
-            - Path=/cash/**
+            - Path=/cash,/cash/**
           filters:
             - StripPrefix=0
-
         - id: transfer-service
           uri: lb://transfer-service
           predicates:
-            - Path=/transfer/**
+            - Path=/transfer,/transfer/**
           filters:
             - StripPrefix=0
-
         - id: notifications-service
           uri: lb://notifications-service
           predicates:
-            - Path=/notifications/**
+            - Path=/notifications,/notifications/**
           filters:
             - StripPrefix=0
-
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://${KEYCLOAK_HOST:localhost}:${KEYCLOAK_PORT:8082}/realms/bank-realm
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,gateway
-  endpoint:
-    gateway:
-      access: read_only
-
-logging:
-  level:
-    org.springframework.cloud.gateway: DEBUG
-    reactor.netty: DEBUG
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/bank-realm}

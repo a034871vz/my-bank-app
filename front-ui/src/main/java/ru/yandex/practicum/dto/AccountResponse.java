@@ -1,4 +1,4 @@
-package ru.yandex.practicum.mybankfront.dto;
+package ru.yandex.practicum.dto;
 
 public record AccountResponse(
         String login,

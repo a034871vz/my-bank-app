@@ -1,4 +1,4 @@
-package ru.yandex.practicum.mybankfront.controller;
+package ru.yandex.practicum.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,10 +7,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import ru.yandex.practicum.mybankfront.client.GatewayClient;
-import ru.yandex.practicum.mybankfront.dto.CashResponse;
-import ru.yandex.practicum.mybankfront.dto.TransferResponse;
-import ru.yandex.practicum.mybankfront.enums.CashAction;
+import ru.yandex.practicum.client.GatewayClient;
+import ru.yandex.practicum.dto.CashResponse;
+import ru.yandex.practicum.dto.TransferResponse;
+import ru.yandex.practicum.enums.CashAction;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
