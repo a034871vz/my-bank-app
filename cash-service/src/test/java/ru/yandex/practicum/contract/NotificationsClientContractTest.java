@@ -16,7 +16,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import ru.yandex.practicum.client.NotificationsClient;
-import ru.yandex.practicum.config.TestOAuth2Config;
 import ru.yandex.practicum.config.TestSecurityConfig;
 import ru.yandex.practicum.dto.NotificationRequest;
 import ru.yandex.practicum.enums.NotificationType;
