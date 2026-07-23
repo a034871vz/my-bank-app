@@ -3,6 +3,7 @@ package ru.yandex.practicum.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,8 +49,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleResourceAccess(ResourceAccessException ex) {
         log.error("Внешний сервис недоступен: {}", ex.getMessage());
         Map<String, String> error = new HashMap<>();
-        error.put("error", "Сервис временно недоступен, попробуйте позже");
+        error.put("error", "Сервис временно недоступен");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
     @ExceptionHandler(Exception.class)

@@ -12,7 +12,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.config.SecurityConfig;
-import ru.yandex.practicum.config.TestSecurityConfig;
 import ru.yandex.practicum.dto.AccountDto;
 import ru.yandex.practicum.dto.AccountUpdateRequest;
 import ru.yandex.practicum.exception.AccountNotFoundException;
@@ -319,7 +318,7 @@ class AccountControllerTest {
     @DisplayName("POST /accounts/{login}/balance: должен вернуть 403 при отсутствии роли ROLE_accounts")
     void changeBalance_WhenNoRoleAccounts_ShouldReturnForbidden() throws Exception {
         mockMvc.perform(post("/accounts/testuser/balance")
-                        .with(jwt().jwt(jwt -> jwt.claim("preferred_username", "testuser"))) // без authorities
+                        .with(jwt().jwt(jwt -> jwt.claim("preferred_username", "testuser")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("amount", 500))))
                 .andExpect(status().isForbidden());

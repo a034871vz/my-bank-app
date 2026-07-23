@@ -1,6 +1,5 @@
 server:
   port: ${SERVER_PORT:0}
-  max-http-request-header-size: 64KB
 
 spring:
   application:

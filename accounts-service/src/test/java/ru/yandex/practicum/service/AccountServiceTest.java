@@ -26,7 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AccountService Unit Tests")
+@DisplayName("Юнит тесты AccountService")
 class AccountServiceTest {
 
     @Mock
@@ -48,9 +48,8 @@ class AccountServiceTest {
         testAccount = new Account(1L, TEST_LOGIN, TEST_NAME, TEST_BIRTHDATE, 1000);
     }
 
-
     @Test
-    @DisplayName("getByLogin: should return AccountDto when account exists")
+    @DisplayName("getByLogin: должен вернуть AccountDto, если аккаунт существует")
     void getByLogin_WhenAccountExists_ShouldReturnAccountDto() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
 
@@ -63,7 +62,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("getByLogin: should throw AccountNotFoundException when account not found")
+    @DisplayName("getByLogin: должен выбросить AccountNotFoundException, если аккаунт не найден")
     void getByLogin_WhenAccountNotFound_ShouldThrowException() {
         when(accountRepository.findByLogin("unknown")).thenReturn(Optional.empty());
 
@@ -73,7 +72,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("update: should update account data successfully")
+    @DisplayName("update: должен успешно обновить данные аккаунта")
     void update_WhenValidData_ShouldUpdateAccount() {
         AccountUpdateRequest request = new AccountUpdateRequest("Петров Петр", LocalDate.of(1995, 3, 10));
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
@@ -88,7 +87,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("update: should throw ValidationException when age is under 18")
+    @DisplayName("update: должен выбросить ValidationException, если возраст меньше 18")
     void update_WhenAgeUnder18_ShouldThrowValidationException() {
         AccountUpdateRequest request = new AccountUpdateRequest("Молодой", LocalDate.now().minusYears(17));
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
@@ -99,7 +98,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("update: should throw AccountNotFoundException when account not found")
+    @DisplayName("update: должен выбросить AccountNotFoundException, если аккаунт не найден")
     void update_WhenAccountNotFound_ShouldThrowException() {
         AccountUpdateRequest request = new AccountUpdateRequest("Имя", LocalDate.of(1990, 1, 1));
         when(accountRepository.findByLogin("unknown")).thenReturn(Optional.empty());
@@ -109,7 +108,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("update: should allow exactly 18 years old")
+    @DisplayName("update: должен пропустить пользователя, которому ровно 18 лет")
     void update_WhenExactly18YearsOld_ShouldSucceed() {
         LocalDate birthdate18 = LocalDate.now().minusYears(18);
         AccountUpdateRequest request = new AccountUpdateRequest("Взрослый", birthdate18);
@@ -122,7 +121,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("getAllForTransfer: should return list of all accounts")
+    @DisplayName("getAllForTransfer: должен вернуть список всех аккаунтов")
     void getAllForTransfer_ShouldReturnAllAccounts() {
         Account account2 = new Account(2L, "user2", "User Two", LocalDate.of(1998, 1, 1), 500);
         when(accountRepository.findAll()).thenReturn(List.of(testAccount, account2));
@@ -135,7 +134,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("getAllForTransfer: should return empty list when no accounts")
+    @DisplayName("getAllForTransfer: должен вернуть пустой список, если аккаунтов нет")
     void getAllForTransfer_WhenNoAccounts_ShouldReturnEmptyList() {
         when(accountRepository.findAll()).thenReturn(List.of());
 
@@ -145,7 +144,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should increase balance successfully")
+    @DisplayName("changeBalance: должен успешно увеличить баланс (пополнение)")
     void changeBalance_WhenDeposit_ShouldIncreaseBalance() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
         when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
@@ -157,7 +156,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should decrease balance successfully")
+    @DisplayName("changeBalance: должен успешно уменьшить баланс (списание)")
     void changeBalance_WhenWithdraw_ShouldDecreaseBalance() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
         when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
@@ -168,7 +167,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should throw ValidationException when insufficient funds")
+    @DisplayName("changeBalance: должен выбросить ValidationException при недостатке средств")
     void changeBalance_WhenInsufficientFunds_ShouldThrowException() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
 
@@ -178,7 +177,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should throw ValidationException when balance goes to zero after withdrawal")
+    @DisplayName("changeBalance: должен списать до нуля (успешно), если сумма равна балансу")
     void changeBalance_WhenWithdrawExactAmount_ShouldSucceed() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
         when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
@@ -189,7 +188,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should throw ValidationException when balance goes negative")
+    @DisplayName("changeBalance: должен выбросить ValidationException при попытке уйти в минус")
     void changeBalance_WhenBalanceGoesNegative_ShouldThrowException() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
 
@@ -199,7 +198,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should save idempotency key when provided")
+    @DisplayName("changeBalance: должен сохранить idempotencyKey, если он передан")
     void changeBalance_WhenIdempotencyKeyProvided_ShouldSaveKey() {
         String key = "key-123";
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
@@ -213,7 +212,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should return cached result on duplicate idempotency key")
+    @DisplayName("changeBalance: должен вернуть кэшированный результат при повторном использовании idempotencyKey")
     void changeBalance_WhenDuplicateIdempotencyKey_ShouldReturnCachedResult() {
         String key = "key-duplicate";
         IdempotencyKey cachedKey = new IdempotencyKey(key, TEST_LOGIN, 5000);
@@ -230,7 +229,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should not check idempotency key when blank")
+    @DisplayName("changeBalance: должен игнорировать пустой/пробельный idempotencyKey")
     void changeBalance_WhenBlankIdempotencyKey_ShouldIgnoreKey() {
         when(accountRepository.findByLogin(TEST_LOGIN)).thenReturn(Optional.of(testAccount));
         when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
@@ -242,7 +241,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("changeBalance: should throw AccountNotFoundException when account not found")
+    @DisplayName("changeBalance: должен выбросить AccountNotFoundException, если аккаунт не найден")
     void changeBalance_WhenAccountNotFound_ShouldThrowException() {
         when(accountRepository.findByLogin("unknown")).thenReturn(Optional.empty());
 
@@ -251,7 +250,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("ensureAccountExists: should create account when not exists")
+    @DisplayName("ensureAccountExists: должен создать аккаунт, если его нет")
     void ensureAccountExists_WhenNotExists_ShouldCreateAccount() {
         when(accountRepository.existsByLogin(TEST_LOGIN)).thenReturn(false);
         when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
@@ -262,7 +261,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("ensureAccountExists: should not create account when already exists")
+    @DisplayName("ensureAccountExists: не должен создавать аккаунт, если он уже существует")
     void ensureAccountExists_WhenExists_ShouldNotCreateAccount() {
         when(accountRepository.existsByLogin(TEST_LOGIN)).thenReturn(true);
 
@@ -272,7 +271,7 @@ class AccountServiceTest {
     }
 
     @Test
-    @DisplayName("ensureAccountExists: should create account with zero balance")
+    @DisplayName("ensureAccountExists: должен создавать аккаунт с нулевым балансом")
     void ensureAccountExists_WhenCreating_ShouldHaveZeroBalance() {
         when(accountRepository.existsByLogin(TEST_LOGIN)).thenReturn(false);
 
