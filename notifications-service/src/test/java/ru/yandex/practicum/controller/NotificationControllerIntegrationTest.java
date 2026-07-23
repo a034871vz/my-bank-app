@@ -52,7 +52,6 @@ class NotificationControllerIntegrationTest {
         NotificationRequest request = new NotificationRequest(
                 NotificationType.WITHDRAW, "testuser", 300, "Списание");
 
-        // Первый запрос
         mockMvc.perform(post("/notifications")
                         .with(jwt().jwt(jwt -> jwt.claim("preferred_username", "service"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_notifications")))
@@ -62,7 +61,6 @@ class NotificationControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("sent")));
 
-        // Второй запрос с тем же ключом
         mockMvc.perform(post("/notifications")
                         .with(jwt().jwt(jwt -> jwt.claim("preferred_username", "service"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_notifications")))
