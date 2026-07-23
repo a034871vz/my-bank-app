@@ -1,4 +1,4 @@
-package ru.yandex.practicum.controller;
+package ru.yandex.practicum;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,4 +1,4 @@
-package service;
+package ru.yandex.practicum.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Модульные тесты CashOperationService")
+@DisplayName("Юнит тесты CashOperationService")
 class CashOperationServiceTest {
 
     @Mock

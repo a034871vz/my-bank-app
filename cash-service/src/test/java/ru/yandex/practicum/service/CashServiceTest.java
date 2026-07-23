@@ -1,4 +1,4 @@
-package service;
+package ru.yandex.practicum.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

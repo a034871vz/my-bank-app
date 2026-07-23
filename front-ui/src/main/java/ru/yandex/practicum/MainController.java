@@ -1,4 +1,4 @@
-package ru.yandex.practicum.controller;
+package ru.yandex.practicum;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
