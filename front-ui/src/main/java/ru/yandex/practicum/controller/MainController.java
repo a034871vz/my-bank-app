@@ -7,13 +7,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ru.yandex.practicum.client.GatewayClient;
 import ru.yandex.practicum.dto.CashResponse;
 import ru.yandex.practicum.dto.TransferResponse;
 import ru.yandex.practicum.enums.CashAction;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -30,74 +30,59 @@ public class MainController {
 
     @GetMapping("/account")
     public String getAccount(Model model) {
-        try {
-            var account = gatewayClient.getMyAccount();
-            var accounts = gatewayClient.getAllAccounts();
-
-            model.addAttribute("name", account.name());
-            model.addAttribute("birthdate", account.birthdate());
-            model.addAttribute("sum", account.balance());
-            model.addAttribute("accounts", accounts);
-
-        } catch (Exception e) {
-            log.error("Ошибка получения аккаунта: {}", e.getMessage());
-            model.addAttribute("errors", List.of("Ошибка загрузки данных: " + e.getMessage()));
-        }
-
+        populateAccountModel(model);
         return "main";
     }
 
     @PostMapping("/account")
-    public String editAccount(Model model, @RequestParam("name") String name, @RequestParam("birthdate") LocalDate birthdate) {
-        List<String> errors = new ArrayList<>();
+    public String editAccount(@RequestParam("name") String name, @RequestParam("birthdate") LocalDate birthdate,
+                              RedirectAttributes redirectAttributes) {
+
+        if (birthdate == null || birthdate.isAfter(LocalDate.now().minusYears(18))) {
+            log.warn("Попытка регистрации/обновления аккаунта пользователем младше 18 лет: birthdate={}", birthdate);
+            redirectAttributes.addFlashAttribute("errors", List.of("Возраст должен быть не менее 18 лет"));
+            return "redirect:/account";
+        }
 
         try {
             gatewayClient.updateAccount(name, birthdate);
-            model.addAttribute("info", "Данные сохранены");
-
+            redirectAttributes.addFlashAttribute("info", "Данные сохранены");
         } catch (Exception e) {
             log.error("Ошибка обновления аккаунта: {}", e.getMessage());
-            errors.add("Ошибка сохранения: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errors", List.of("Ошибка сохранения: " + e.getMessage()));
         }
 
-        return getAccountWithErrors(model, errors);
+        return "redirect:/account";
     }
 
     @PostMapping("/cash")
-    public String editCash(Model model, @RequestParam("value") int value, @RequestParam("action") CashAction action) {
-        List<String> errors = new ArrayList<>();
-
+    public String editCash(@RequestParam("value") int value, @RequestParam("action") CashAction action, RedirectAttributes redirectAttributes) {
         try {
             String type = action == CashAction.PUT ? "DEPOSIT" : "WITHDRAW";
             CashResponse response = gatewayClient.processCash(type, value);
-
-            model.addAttribute("info", response.message());
-
+            redirectAttributes.addFlashAttribute("info", response.message());
         } catch (Exception e) {
             log.error("Ошибка cash операции: {}", e.getMessage());
-            errors.add("Ошибка операции: " + extractErrorMessage(e));
+            redirectAttributes.addFlashAttribute("errors", List.of("Ошибка операции: " + e.getMessage()));
         }
 
-        return getAccountWithErrors(model, errors);
+        return "redirect:/account";
     }
 
     @PostMapping("/transfer")
-    public String transfer(Model model, @RequestParam("value") int value, @RequestParam("login") String login) {
-        List<String> errors = new ArrayList<>();
-
+    public String transfer(@RequestParam("value") int value, @RequestParam("login") String login, RedirectAttributes redirectAttributes) {
         try {
             TransferResponse response = gatewayClient.transfer(login, value);
-            model.addAttribute("info", response.message());
-
+            redirectAttributes.addFlashAttribute("info", response.message());
         } catch (Exception e) {
             log.error("Ошибка перевода: {}", e.getMessage());
-            errors.add("Ошибка перевода: " + extractErrorMessage(e));
+            redirectAttributes.addFlashAttribute("errors", List.of("Ошибка перевода: " + e.getMessage()));
         }
 
-        return getAccountWithErrors(model, errors);
+        return "redirect:/account";
     }
 
-    private String getAccountWithErrors(Model model, List<String> errors) {
+    private void populateAccountModel(Model model) {
         try {
             var account = gatewayClient.getMyAccount();
             var accounts = gatewayClient.getAllAccounts();
@@ -106,27 +91,9 @@ public class MainController {
             model.addAttribute("birthdate", account.birthdate());
             model.addAttribute("sum", account.balance());
             model.addAttribute("accounts", accounts);
-            model.addAttribute("errors", errors.isEmpty() ? null : errors);
-
         } catch (Exception e) {
-            log.error("Ошибка перезагрузки данных: {}", e.getMessage());
-            errors.add("Ошибка загрузки данных: " + e.getMessage());
-            model.addAttribute("errors", errors);
+            log.error("Ошибка получения аккаунта: {}", e.getMessage());
+            model.addAttribute("errors", List.of("Ошибка загрузки данных: " + e.getMessage()));
         }
-
-        return "main";
-    }
-
-    private String extractErrorMessage(Exception e) {
-        String message = e.getMessage();
-        if (message != null && message.contains("error")) {
-            try {
-                int start = message.indexOf("error:") + 9;
-                int end = message.indexOf("", start);
-                return message.substring(start, end);
-            } catch (Exception ignored) {
-            }
-        }
-        return message;
     }
 }

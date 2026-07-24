@@ -5,11 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.dto.CashRequest;
+import ru.yandex.practicum.dto.NotificationEventPayload;
 import ru.yandex.practicum.entity.CashOperation;
 import ru.yandex.practicum.enums.NotificationType;
 import ru.yandex.practicum.repository.CashOperationRepository;
-
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -35,20 +34,14 @@ public class CashOperationService {
             case WITHDRAW -> NotificationType.WITHDRAW;
         };
 
-        Map<String, Object> notificationPayload = Map.of(
-                "type", notificationType.name(),
-                "login", login,
-                "amount", request.amount(),
-                "message", message,
-                "newBalance", newBalance,
-                "sagaId", sagaId
-        );
+        NotificationEventPayload payload = new NotificationEventPayload(notificationType, login,
+                request.amount(), message, newBalance, sagaId);
 
         String eventType = switch (request.type()) {
             case DEPOSIT -> "CASH_DEPOSIT";
             case WITHDRAW -> "CASH_WITHDRAW";
         };
 
-        outboxService.publish(eventType, notificationPayload, "notifications-service", sagaId);
+        outboxService.publish(eventType, payload, "notifications-service", sagaId);
     }
 }

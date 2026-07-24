@@ -2,19 +2,16 @@ package ru.yandex.practicum.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.client.NotificationsClient;
+import ru.yandex.practicum.dto.NotificationEventPayload;
 import ru.yandex.practicum.dto.NotificationRequest;
 import ru.yandex.practicum.entity.OutboxEvent;
-import ru.yandex.practicum.enums.NotificationType;
 import ru.yandex.practicum.repository.OutboxEventRepository;
 
-import java.time.LocalDateTime;
-import java.util.Map;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -26,64 +23,60 @@ public class OutboxPoller {
     private final OutboxEventRepository outboxEventRepository;
     private final NotificationsClient notificationsClient;
     private final ObjectMapper objectMapper;
+    private final OutboxService outboxService;
 
     @Scheduled(fixedDelay = 5000)
-    @Transactional
     public void poll() {
-        var events = outboxEventRepository.findUnprocessed();
+        List<OutboxEvent> events = outboxEventRepository.findUnprocessed();
 
         for (OutboxEvent event : events) {
             if (event.getRetryCount() >= MAX_RETRIES) {
-                moveToDeadLetter(event, "Max retries exceeded");
+                outboxService.moveToDeadLetter(event.getId(), "Max retries exceeded");
                 continue;
             }
 
             try {
                 processEvent(event);
-                event.setProcessedAt(LocalDateTime.now());
+                outboxService.markAsProcessed(event.getId());
                 log.info("Outbox событие #{} обработано", event.getId());
 
             } catch (Exception e) {
-                event.setRetryCount(event.getRetryCount() + 1);
-                event.setError(e.getMessage());
+                int nextRetry = event.getRetryCount() + 1;
+                if (nextRetry >= MAX_RETRIES) {
+                    outboxService.moveToDeadLetter(event.getId(), "Максимум попыток (" + MAX_RETRIES + ") достигнуто. Ошибка : " + e.getMessage());
+                } else {
+                    outboxService.registerError(event.getId(), nextRetry, e.getMessage());
+                }
                 log.error("Outbox событие #{} ошибка (попытка {}/{}): {}",
-                        event.getId(), event.getRetryCount(), MAX_RETRIES, e.getMessage());
+                        event.getId(), nextRetry, MAX_RETRIES, e.getMessage());
             }
-
-            outboxEventRepository.save(event);
         }
     }
 
     private void processEvent(OutboxEvent event) {
         log.info("Обработка события {} типа {} для {}", event.getId(), event.getEventType(), event.getDestination());
 
-        if (event.getDestination().equals("notifications-service")) {
+        if ("notifications-service".equals(event.getDestination())) {
             processNotification(event);
         } else {
-            throw new IllegalArgumentException("Unknown destination: " + event.getDestination());
+            throw new IllegalArgumentException("Неизвестный destination: " + event.getDestination());
         }
     }
 
-    @SneakyThrows
-    @SuppressWarnings("unchecked")
     private void processNotification(OutboxEvent event) {
-        Map<String, Object> payload = objectMapper.readValue(event.getPayload(), Map.class);
+        try {
+            NotificationEventPayload payload = objectMapper.readValue(event.getPayload(), NotificationEventPayload.class);
 
-        NotificationRequest request = new NotificationRequest(
-                NotificationType.valueOf((String) payload.get("type")),
-                (String) payload.get("login"),
-                (Integer) payload.get("amount"),
-                (String) payload.get("message")
-        );
+            NotificationRequest request = new NotificationRequest(
+                    payload.type(),
+                    payload.login(),
+                    payload.amount(),
+                    payload.message()
+            );
 
-        String idempotencyKey = (String) payload.get("sagaId");
-        notificationsClient.sendNotification(request, idempotencyKey);
-    }
-
-    private void moveToDeadLetter(OutboxEvent event, String reason) {
-        log.error("Событие #{} перемещено в dead letter: {}", event.getId(), reason);
-        event.setFailedAt(LocalDateTime.now());
-        event.setError(reason);
-        event.setProcessedAt(LocalDateTime.now());
+            notificationsClient.sendNotification(request, payload.sagaId());
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка парсинга или отправки уведомления: " + e.getMessage(), e);
+        }
     }
 }

@@ -37,4 +37,28 @@ public class OutboxService {
     private String toJson(Object payload) {
         return objectMapper.writeValueAsString(payload);
     }
+
+    @Transactional
+    public void markAsProcessed(Long eventId) {
+        outboxEventRepository.findById(eventId)
+                .ifPresent(event -> event.setProcessedAt(LocalDateTime.now()));
+    }
+
+    @Transactional
+    public void registerError(Long eventId, int newRetryCount, String errorMessage) {
+        outboxEventRepository.findById(eventId).ifPresent(event -> {
+            event.setRetryCount(newRetryCount);
+            event.setError(errorMessage);
+        });
+    }
+
+    @Transactional
+    public void moveToDeadLetter(Long eventId, String reason) {
+        outboxEventRepository.findById(eventId).ifPresent(event -> {
+            log.error("Событие #{} перемещено в dead letter: {}", eventId, reason);
+            event.setFailedAt(LocalDateTime.now());
+            event.setError(reason);
+            event.setProcessedAt(LocalDateTime.now());
+        });
+    }
 }
