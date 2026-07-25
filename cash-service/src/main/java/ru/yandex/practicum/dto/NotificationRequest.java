@@ -16,4 +16,7 @@ public record NotificationRequest(
         @NotBlank(message = "Сообщение обязательно")
         String message
 ) {
+    public NotificationRequest(NotificationEventPayload payload) {
+        this(payload.type(), payload.login(), payload.amount(), payload.message());
+    }
 }

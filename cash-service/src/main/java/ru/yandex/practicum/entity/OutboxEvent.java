@@ -2,6 +2,8 @@ package ru.yandex.practicum.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -14,6 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import ru.yandex.practicum.enums.OutboxStatus;
 
 import java.time.LocalDateTime;
 
@@ -44,7 +47,13 @@ public class OutboxEvent {
     @Column(name = "saga_id", length = 100)
     private String sagaId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private OutboxStatus status = OutboxStatus.NEW;
+
     @Column(name = "retry_count", nullable = false)
+    @Builder.Default
     private int retryCount = 0;
 
     @Column(name = "created_at", nullable = false)

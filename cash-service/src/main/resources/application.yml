@@ -24,7 +24,7 @@ spring:
   cloud:
     consul:
       host: ${CONSUL_HOST:localhost}
-      port: 8500
+      port: 18500
       discovery:
         enabled: true
         prefer-ip-address: ${CONSUL_PREFER_IP:false}

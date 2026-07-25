@@ -265,7 +265,7 @@ docker compose up --build
 | Front UI | http://localhost:8080 |
 | Gateway | http://localhost:8081 |
 | Keycloak | http://localhost:8082 |
-| Consul | http://localhost:8500 |
+| Consul | http://localhost:18500 |
 
 ---
 

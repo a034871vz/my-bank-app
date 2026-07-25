@@ -31,7 +31,7 @@ services:
     image: hashicorp/consul:1.19
     container_name: bank_consul
     ports:
-      - "8500:8500"
+      - "18500:8500"
     command: consul agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0
     volumes:
       - consul_data:/consul/data

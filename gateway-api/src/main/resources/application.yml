@@ -8,7 +8,7 @@ spring:
   cloud:
     consul:
       host: ${CONSUL_HOST:localhost}
-      port: 8500
+      port: 18500
       discovery:
         enabled: true
         register: true

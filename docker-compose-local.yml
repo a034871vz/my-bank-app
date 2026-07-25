@@ -5,7 +5,7 @@ services:
     image: hashicorp/consul:1.19
     container_name: bank_consul_local
     ports:
-      - "8500:8500"
+      - "18500:8500"
       - "8600:8600/udp"
     command: consul agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0
     volumes:

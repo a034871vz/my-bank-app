@@ -1,5 +1,6 @@
 package ru.yandex.practicum.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -10,9 +11,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.yandex.practicum.dto.NotificationRequest;
+import ru.yandex.practicum.dto.NotificationResponse;
 import ru.yandex.practicum.service.NotificationService;
-
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -20,20 +20,21 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class NotificationController {
 
+    private static final String STATUS_ALREADY_PROCESSED = "already-processed";
+    private static final String STATUS_SENT = "sent";
+
     private final NotificationService notificationService;
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_notifications')")
-    public ResponseEntity<Map<String, String>> notify(@RequestBody NotificationRequest request,
-                                                      @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+    public ResponseEntity<NotificationResponse> notify(@Valid @RequestBody NotificationRequest request,
+                                                       @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
 
         log.info("Получено уведомление типа {} для {}, key={}", request.type(), request.login(), idempotencyKey);
 
         boolean alreadyProcessed = notificationService.sendNotification(request, idempotencyKey);
 
-        if (alreadyProcessed) {
-            return ResponseEntity.ok(Map.of("status", "already-processed"));
-        }
-        return ResponseEntity.ok(Map.of("status", "sent"));
+        String status = alreadyProcessed ? STATUS_ALREADY_PROCESSED : STATUS_SENT;
+        return ResponseEntity.ok(new NotificationResponse(status));
     }
 }
