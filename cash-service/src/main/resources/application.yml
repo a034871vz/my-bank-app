@@ -1,0 +1,54 @@
+server:
+  port: ${SERVER_PORT:0}
+  max-http-request-header-size: 64KB
+
+spring:
+  application:
+    name: cash-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:5432/bankdb?currentSchema=cash
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        default_schema: cash
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog-master.yaml
+    default-schema: cash
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: 18500
+      discovery:
+        enabled: true
+        prefer-ip-address: ${CONSUL_PREFER_IP:false}
+        hostname: ${CONSUL_DISCOVERY_HOSTNAME:localhost}
+        instance-id: ${spring.application.name}:${random.value}
+        heartbeat:
+          enabled: true
+        health-check-enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/bank-realm}
+      client:
+        registration:
+          cash-service:
+            provider: keycloak
+            client-id: cash-service
+            client-secret: ${CASH_SERVICE_SECRET:default-secret}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/bank-realm}
+
+services:
+  gateway:
+    url: ${GATEWAY_URL:http://localhost:8081}

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: bank_consul_local
+    ports:
+      - "18500:8500"
+      - "8600:8600/udp"
+    command: consul agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: bank_postgres_local
+    environment:
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.4
+    container_name: bank_keycloak_local
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/bankdb?currentSchema=keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_DB_SCHEMA: keycloak
+    ports:
+      - "8082:8080"
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak-import:/opt/keycloak/data/import
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  consul_data:

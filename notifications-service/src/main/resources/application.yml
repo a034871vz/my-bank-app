@@ -1,0 +1,28 @@
+server:
+  port: ${SERVER_PORT:0}
+  max-http-request-header-size: 64KB
+
+spring:
+  application:
+    name: notifications-service
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: 18500
+      discovery:
+        enabled: true
+        prefer-ip-address: ${CONSUL_PREFER_IP:false}
+        hostname: ${CONSUL_DISCOVERY_HOSTNAME:localhost}
+        instance-id: ${spring.application.name}:${random.value}
+        heartbeat:
+          enabled: true
+        health-check-enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/bank-realm}
+
+services:
+  gateway:
+    url: ${GATEWAY_URL:http://localhost:8081}

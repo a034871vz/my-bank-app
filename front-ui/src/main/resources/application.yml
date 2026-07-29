@@ -1,0 +1,38 @@
+server:
+  port: ${SERVER_PORT:8083}
+  max-http-request-header-size: 64KB
+
+spring:
+  application:
+    name: front-ui
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: 18500
+      discovery:
+        enabled: true
+        prefer-ip-address: ${CONSUL_PREFER_IP:false}
+        hostname: ${CONSUL_DISCOVERY_HOSTNAME:localhost}
+        instance-id: ${spring.application.name}:${random.value}
+        heartbeat:
+          enabled: true
+        health-check-enabled: false
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: front-ui
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/bank-realm}
+            user-name-attribute: preferred_username
+  thymeleaf:
+    cache: false
+
+services:
+  gateway:
+    url: ${GATEWAY_URL:http://localhost:8081}

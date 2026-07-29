@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - include:
+      file: changes/001-create-transfer_operations.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/002-create-outbox.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/003-add-outbox-status.sql
+      relativeToChangelogFile: true

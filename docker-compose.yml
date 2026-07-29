@@ -1,0 +1,232 @@
+version: '3.8'
+
+networks:
+  bank-network:
+    driver: bridge
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: bank_traefik
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+      - "8088:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      bank-network:
+        aliases:
+          - auth.localhost
+          - api.localhost
+          - front.localhost
+    restart: unless-stopped
+
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: bank_consul
+    ports:
+      - "18500:8500"
+    command: consul agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: bank_postgres
+    environment:
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.4
+    container_name: bank_keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/bankdb?currentSchema=keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_HOSTNAME: http://auth.localhost
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak-import:/opt/keycloak/data/import
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`auth.localhost`)
+      - traefik.http.routers.keycloak.entrypoints=web
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    depends_on:
+      - postgres
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  gateway-api:
+    build:
+      context: .
+      dockerfile: gateway-api/Dockerfile
+    container_name: bank_gateway
+    hostname: gateway-api
+    environment:
+      - SERVER_PORT=8080
+      - CONSUL_HOST=consul
+      - CONSUL_DISCOVERY_HOSTNAME=gateway-api
+      - CONSUL_PREFER_IP=false
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gateway.rule=Host(`api.localhost`)
+      - traefik.http.routers.gateway.entrypoints=web
+      - traefik.http.services.gateway.loadbalancer.server.port=8080
+    depends_on:
+      - consul
+      - keycloak
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  front-ui:
+    build:
+      context: .
+      dockerfile: front-ui/Dockerfile
+    container_name: bank_front
+    hostname: front-ui
+    environment:
+      - SERVER_PORT=8083
+      - CONSUL_HOST=consul
+      - CONSUL_DISCOVERY_HOSTNAME=front-ui
+      - CONSUL_PREFER_IP=false
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - GATEWAY_URL=http://gateway-api:8080
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.front.rule=Host(`front.localhost`)
+      - traefik.http.routers.front.entrypoints=web
+      - traefik.http.services.front.loadbalancer.server.port=8083
+    depends_on:
+      - consul
+      - keycloak
+      - gateway-api
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  accounts-service:
+    build:
+      context: .
+      dockerfile: accounts-service/Dockerfile
+    container_name: bank_accounts
+    hostname: accounts-service
+    environment:
+      - SERVER_PORT=8080
+      - CONSUL_HOST=consul
+      - CONSUL_DISCOVERY_HOSTNAME=accounts-service
+      - CONSUL_PREFER_IP=false
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - GATEWAY_URL=http://gateway-api:8080
+    depends_on:
+      - consul
+      - postgres
+      - keycloak
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  cash-service:
+    build:
+      context: .
+      dockerfile: cash-service/Dockerfile
+    container_name: bank_cash
+    hostname: cash-service
+    environment:
+      - SERVER_PORT=8080
+      - CONSUL_HOST=consul
+      - CONSUL_DISCOVERY_HOSTNAME=cash-service
+      - CONSUL_PREFER_IP=false
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - CASH_SERVICE_SECRET=${CASH_SERVICE_SECRET}
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - GATEWAY_URL=http://gateway-api:8080
+    depends_on:
+      - consul
+      - postgres
+      - keycloak
+      - accounts-service
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  transfer-service:
+    build:
+      context: .
+      dockerfile: transfer-service/Dockerfile
+    container_name: bank_transfer
+    hostname: transfer-service
+    environment:
+      - SERVER_PORT=8080
+      - CONSUL_HOST=consul
+      - CONSUL_DISCOVERY_HOSTNAME=transfer-service
+      - CONSUL_PREFER_IP=false
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - TRANSFER_SERVICE_SECRET=${TRANSFER_SERVICE_SECRET}
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - GATEWAY_URL=http://gateway-api:8080
+    depends_on:
+      - consul
+      - postgres
+      - keycloak
+      - accounts-service
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: notifications-service/Dockerfile
+    container_name: bank_notifications
+    hostname: notifications-service
+    environment:
+      - SERVER_PORT=8080
+      - CONSUL_HOST=consul
+      - CONSUL_DISCOVERY_HOSTNAME=notifications-service
+      - CONSUL_PREFER_IP=false
+      - KEYCLOAK_ISSUER_URI=http://auth.localhost/realms/bank-realm
+      - GATEWAY_URL=http://gateway-api:8080
+    depends_on:
+      - consul
+      - keycloak
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  consul_data:
